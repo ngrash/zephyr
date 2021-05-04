@@ -9,8 +9,8 @@
 <table>
 	<thead>
 		<th>Handle</th>
-		<th>Last Run</th>
 		<th>Next Run</th>
+		<th>Last Run</th>
 		<th>History</th>
 		<th>Actions</th>
 	</thead>
@@ -18,8 +18,8 @@
 {{ range .Pipelines }}
 		<tr>
 			<td>{{ .Handle }}</td>
-			<td>{{ .LastRun }}</td>
 			<td>{{ .NextRun }}</td>
+			<td>{{ .LastRun }}</td>
 			<td>...</td>
 			<td>
 				<form method="post" action="run">

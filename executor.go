@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"os/exec"
 
 	"github.com/google/uuid"
@@ -36,7 +37,7 @@ func (i InstanceStatus) String() string {
 
 type PipelineInstance struct {
 	Id     string
-	Def    PipelineDefinition
+	Def    *PipelineDefinition
 	Status InstanceStatus
 	Jobs   []*JobInstance
 }
@@ -57,7 +58,8 @@ func NewExecutor() *Executor {
 	}
 }
 
-func (e *Executor) Run(def PipelineDefinition) string {
+func (e *Executor) Run(def *PipelineDefinition) string {
+	log.Printf("Executor.Run({Handle: %s})", def.Handle)
 
 	instance := &PipelineInstance{
 		Id:     uuid.NewString(),

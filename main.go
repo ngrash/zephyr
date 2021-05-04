@@ -6,12 +6,16 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/go-co-op/gocron"
 	"github.com/ngrash/zephyr/stdstreams"
 )
 
 type PipelineDefinition struct {
-	Handle string
-	Jobs   []JobDefinition
+	Handle   string
+	Schedule string
+	Jobs     []JobDefinition
+
+	schedulerJob *gocron.Job
 }
 
 type JobDefinition struct {
@@ -20,33 +24,48 @@ type JobDefinition struct {
 }
 
 type PipelineViewModel struct {
-	PipelineDefinition
-	LastRun *time.Time
+	*PipelineDefinition
 	NextRun *time.Time
+	LastRun *time.Time
 }
 
 func main() {
 
 	executor := NewExecutor()
 
-	pipelines := []PipelineDefinition{
-		{"Hello", []JobDefinition{
+	pipelines := []*PipelineDefinition{
+		{"Hello", "*/1 * * * *", []JobDefinition{
 			{"echo", "echo Hello world"},
 			{"sleep 5", "sleep 5"},
 			{"ls /", "ls /"},
 			{"echo2", "echo yay"},
-		}},
-		{"World", []JobDefinition{
+		}, nil},
+		{"World", "", []JobDefinition{
 			{"echo", "echo Hello world"},
 			{"sleep 1", "sleep 5"},
 			{"exit 1", "exit 1"},
 			{"echo2", "echo yay"},
-		}},
-		{"Of Pipelines", []JobDefinition{}},
+		}, nil},
+		{"Of Pipelines", "", []JobDefinition{}, nil},
 	}
 
-	pipelineByHandle := func(handle string) PipelineDefinition {
-		var pipeline PipelineDefinition
+	scheduler := gocron.NewScheduler(time.UTC)
+	for _, p := range pipelines {
+		pipeline := p
+		if p.Schedule != "" {
+			job, err := scheduler.Cron(p.Schedule).Do(func() {
+				executor.Run(pipeline)
+			})
+			if err != nil {
+				log.Fatal(err)
+			}
+			p.schedulerJob = job
+		}
+	}
+	scheduler.StartAsync()
+
+	pipelineByHandle := func(handle string) *PipelineDefinition {
+		var pipeline *PipelineDefinition
 		for _, p := range pipelines {
 			if p.Handle == handle {
 				pipeline = p
@@ -60,7 +79,13 @@ func main() {
 
 		vms := make([]PipelineViewModel, len(pipelines))
 		for i, p := range pipelines {
-			vms[i] = PipelineViewModel{p, nil, nil}
+			var nextRun *time.Time
+			if p.schedulerJob != nil {
+				t := p.schedulerJob.ScheduledTime()
+				nextRun = &t
+			}
+
+			vms[i] = PipelineViewModel{p, nextRun, nil}
 		}
 
 		data := struct{ Pipelines []PipelineViewModel }{vms}
@@ -81,7 +106,7 @@ func main() {
 		id := r.FormValue("id")
 		instance, _ := executor.PipelineInstance(id)
 		data := struct {
-			Def      PipelineDefinition
+			Def      *PipelineDefinition
 			Instance *PipelineInstance
 		}{
 			instance.Def,
@@ -112,7 +137,7 @@ func main() {
 		}
 
 		data := struct {
-			PipelineDef      PipelineDefinition
+			PipelineDef      *PipelineDefinition
 			PipelineInstance *PipelineInstance
 			Def              JobDefinition
 			Instance         *JobInstance
