@@ -7,7 +7,10 @@ import (
 	"time"
 
 	"github.com/go-co-op/gocron"
+	"github.com/jmoiron/sqlx"
 	"github.com/ngrash/zephyr/stdstreams"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type PipelineDefinition struct {
@@ -31,13 +34,19 @@ type PipelineViewModel struct {
 
 func main() {
 
-	executor := NewExecutor()
+	db, err := sqlx.Connect("sqlite3", "zephyr.db?foreign_keys=on")
+	if err != nil {
+		log.Fatal(err)
+	}
+	MigrateSchema(db)
+
+	executor := NewExecutor(db)
 
 	pipelines := []*PipelineDefinition{
 		{"Hello", "*/1 * * * *", []JobDefinition{
 			{"echo", "echo Hello world"},
 			{"sleep 5", "sleep 5"},
-			{"ls /", "ls /"},
+			{"ls -lah", "ls -lah"},
 			{"echo2", "echo yay"},
 		}, nil},
 		{"World", "", []JobDefinition{
@@ -104,13 +113,28 @@ func main() {
 
 	http.HandleFunc("/pipeline_instance", func(w http.ResponseWriter, r *http.Request) {
 		id := r.FormValue("id")
-		instance, _ := executor.PipelineInstance(id)
+
+		var pipeline PipelineInstance
+		err := db.Get(&pipeline, "SELECT * FROM pipelines WHERE id = ?", id)
+		if err != nil {
+			log.Fatal(err)
+		}
+		def := pipelineByHandle(pipeline.Handle)
+
+		var jobs []JobInstance
+		err = db.Select(&jobs, "SELECT * FROM jobs WHERE pipeline_id = ?", id)
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		data := struct {
 			Def      *PipelineDefinition
 			Instance *PipelineInstance
+			Jobs     []JobInstance
 		}{
-			instance.Def,
-			instance,
+			def,
+			&pipeline,
+			jobs,
 		}
 		tmpl := template.Must(template.ParseFiles("templates/pipeline_instance.html"))
 		if err := tmpl.Execute(w, data); err != nil {
@@ -122,31 +146,28 @@ func main() {
 		pipelineId := r.FormValue("pipeline_id")
 		jobHandle := r.FormValue("handle")
 
-		var job *JobInstance
-		instance, _ := executor.PipelineInstance(pipelineId)
-		for _, jobInstance := range instance.Jobs {
-			if jobInstance.Def.Handle == jobHandle {
-				job = jobInstance
-				break
-			}
+		var pipeline PipelineInstance
+		db.Get(&pipeline, "SELECT * FROM pipelines WHERE id = ?", pipelineId)
+		def := pipelineByHandle(pipeline.Handle)
+
+		type LogLine struct {
+			Stream   stdstreams.Stream
+			Line     string
+			LoggedAt time.Time `db:"logged_at"`
 		}
 
-		var logLines []stdstreams.Line
-		if job.Log != nil {
-			logLines = job.Log.Lines()
-		}
+		var logLines []LogLine
+		db.Select(&logLines, "SELECT stream, line, logged_at FROM logs JOIN jobs ON jobs.id = logs.job_id WHERE jobs.handle = ? AND jobs.pipeline_id = ? ORDER BY logged_at ASC", jobHandle, pipelineId)
 
 		data := struct {
 			PipelineDef      *PipelineDefinition
 			PipelineInstance *PipelineInstance
-			Def              JobDefinition
-			Instance         *JobInstance
-			Log              []stdstreams.Line
+			JobHandle        string
+			Log              []LogLine
 		}{
-			instance.Def,
-			instance,
-			job.Def,
-			job,
+			def,
+			&pipeline,
+			jobHandle,
 			logLines,
 		}
 		tmpl := template.Must(template.ParseFiles("templates/job_instance.html"))

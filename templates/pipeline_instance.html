@@ -15,11 +15,11 @@ Status: {{ .Instance.Status }}
 		<th>Actions</th>
 	</thead>
 	<tbody>
-{{ range .Instance.Jobs }}
+{{ range .Jobs }}
 		<tr>
-			<td>{{ .Def.Handle }}</td>
+			<td>{{ .Handle }}</td>
 			<td>{{ .Status }}</td>
-			<td><a href="job_instance?handle={{ .Def.Handle }}&pipeline_id={{ $.Instance.Id }}">Inspect</td>
+			<td><a href="job_instance?handle={{ .Handle }}&pipeline_id={{ $.Instance.Id }}">Inspect</td>
 		</tr>
 {{ end }}
 	</tbody>

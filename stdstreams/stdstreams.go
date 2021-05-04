@@ -38,17 +38,23 @@ type Line struct {
 
 // A Log collects output streams.
 type Log struct {
-	lines []Line
-	mutex sync.Mutex
-	outW  *bufferedLineWriter
-	errW  *bufferedLineWriter
+	lines    []Line
+	mutex    sync.Mutex
+	callback func(newLine *Line)
+	outW     *bufferedLineWriter
+	errW     *bufferedLineWriter
 }
 
 // NewLog creates a new log.
 func NewLog() *Log {
+	return NewLogWithCallback(func(_ *Line) {})
+}
+
+func NewLogWithCallback(callback func(newLine *Line)) *Log {
 	l := &Log{
 		make([]Line, 0),
 		sync.Mutex{},
+		callback,
 		nil,
 		nil,
 	}
@@ -78,7 +84,9 @@ func (l *Log) makeWriter(stream Stream) *bufferedLineWriter {
 func (l *Log) writeLine(stream Stream, text string) {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
-	l.lines = append(l.lines, Line{stream, time.Now(), text})
+	line := Line{stream, time.Now(), text}
+	l.lines = append(l.lines, line)
+	l.callback(&line)
 }
 
 // Lines returns all lines written to the Log.
