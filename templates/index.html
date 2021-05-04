@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<head>
+</head>
+<body>
+
+<h1>Pipelines</h1>
+
+<table>
+	<thead>
+		<th>Handle</th>
+		<th>Last Run</th>
+		<th>Next Run</th>
+		<th>History</th>
+		<th>Actions</th>
+	</thead>
+	<tbody>
+{{ range .Pipelines }}
+		<tr>
+			<td>{{ .Handle }}</td>
+			<td>{{ .LastRun }}</td>
+			<td>{{ .NextRun }}</td>
+			<td>...</td>
+			<td>
+				<form method="post" action="run">
+					<input type="hidden" name="handle" value="{{ .Handle }}" />
+					<input type="submit" value="Run" />
+				</form>
+			</td>
+		</tr>
+{{ end }}
+	</tbody>
+</table>
+
+</body>
+</html>

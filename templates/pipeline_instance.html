@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+<head>
+</head>
+<body>
+
+<h1>{{.Def.Handle}}</h1>
+
+Status: {{ .Instance.Status }}
+
+<table>
+	<thead>
+		<th>Handle</th>
+		<th>Status</th>
+		<th>Actions</th>
+	</thead>
+	<tbody>
+{{ range .Instance.Jobs }}
+		<tr>
+			<td>{{ .Def.Handle }}</td>
+			<td>{{ .Status }}</td>
+			<td><a href="job_instance?handle={{ .Def.Handle }}&pipeline_id={{ $.Instance.Id }}">Inspect</td>
+		</tr>
+{{ end }}
+	</tbody>
+</table>
+
+</body>
+</html>
