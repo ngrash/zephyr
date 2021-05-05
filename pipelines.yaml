@@ -1,0 +1,16 @@
+---
+Hello:
+    schedule: "*/1 * * * *"
+    jobs:
+        greet: echo Hello world
+        sleep: sleep 5
+        list: ls -lah
+        say goodbye: echo Goodbye
+
+Fail:
+    jobs:
+        echo: "echo \"I'm going to fail\""
+        sleep: sleep 1
+        fail: exit 1
+        will be cancelled: echo ":("
+

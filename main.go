@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-co-op/gocron"
 	"github.com/jmoiron/sqlx"
+	"github.com/ngrash/zephyr/config"
 	"github.com/ngrash/zephyr/stdstreams"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -42,20 +43,17 @@ func main() {
 
 	executor := NewExecutor(db)
 
-	pipelines := []*PipelineDefinition{
-		{"Hello", "*/1 * * * *", []JobDefinition{
-			{"echo", "echo Hello world"},
-			{"sleep 5", "sleep 5"},
-			{"ls -lah", "ls -lah"},
-			{"echo2", "echo yay"},
-		}, nil},
-		{"World", "", []JobDefinition{
-			{"echo", "echo Hello world"},
-			{"sleep 1", "sleep 5"},
-			{"exit 1", "exit 1"},
-			{"echo2", "echo yay"},
-		}, nil},
-		{"Of Pipelines", "", []JobDefinition{}, nil},
+	ps, err := config.LoadPipelines("pipelines.yaml")
+	pipelines := make([]*PipelineDefinition, len(ps))
+	for i, p := range ps {
+		jobs := make([]JobDefinition, len(p.Jobs))
+		for ii, j := range p.Jobs {
+			jobs[ii] = JobDefinition{Handle: j.Name, Command: j.Command}
+		}
+		pipelines[i] = &PipelineDefinition{
+			Handle: p.Name,
+			Jobs:   jobs,
+		}
 	}
 
 	scheduler := gocron.NewScheduler(time.UTC)
