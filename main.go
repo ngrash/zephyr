@@ -51,8 +51,9 @@ func main() {
 			jobs[ii] = JobDefinition{Handle: j.Name, Command: j.Command}
 		}
 		pipelines[i] = &PipelineDefinition{
-			Handle: p.Name,
-			Jobs:   jobs,
+			Handle:   p.Name,
+			Schedule: p.Schedule,
+			Jobs:     jobs,
 		}
 	}
 
