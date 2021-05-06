@@ -69,7 +69,14 @@ func main() {
 				nextRun = &t
 			}
 
-			vms[i] = PipelineViewModel{p, nextRun, nil}
+			var lastRun *time.Time
+			var history []database.Pipeline
+			db.Select(&history, database.SelectLatestPipelinesByName, p.Name)
+			if len(history) > 0 {
+				lastRun = &(history[0].CreatedAt)
+			}
+
+			vms[i] = PipelineViewModel{p, nextRun, lastRun}
 		}
 
 		data := struct{ Pipelines []PipelineViewModel }{vms}
