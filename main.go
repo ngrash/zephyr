@@ -9,7 +9,7 @@ import (
 	"github.com/go-co-op/gocron"
 	"github.com/jmoiron/sqlx"
 	"github.com/ngrash/zephyr/config"
-	"github.com/ngrash/zephyr/stdstreams"
+	"github.com/ngrash/zephyr/database"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -89,23 +89,23 @@ func main() {
 	http.HandleFunc("/pipeline_instance", func(w http.ResponseWriter, r *http.Request) {
 		id := r.FormValue("id")
 
-		var pipeline PipelineInstance
-		err := db.Get(&pipeline, "SELECT * FROM pipelines WHERE id = ?", id)
+		var pipeline database.Pipeline
+		err := db.Get(&pipeline, database.GetPipelineById, id)
 		if err != nil {
 			log.Fatal(err)
 		}
 		def := pipelineByName(pipeline.Name)
 
-		var jobs []JobInstance
-		err = db.Select(&jobs, "SELECT * FROM jobs WHERE pipeline_id = ?", id)
+		var jobs []database.Job
+		err = db.Select(&jobs, database.SelectJobsByPipelineId, id)
 		if err != nil {
 			log.Fatal(err)
 		}
 
 		data := struct {
 			Def      *config.Pipeline
-			Instance *PipelineInstance
-			Jobs     []JobInstance
+			Instance *database.Pipeline
+			Jobs     []database.Job
 		}{
 			def,
 			&pipeline,
@@ -121,31 +121,25 @@ func main() {
 		pipelineId := r.FormValue("pipeline_id")
 		jobName := r.FormValue("name")
 
-		var pipeline PipelineInstance
-		err := db.Get(&pipeline, "SELECT * FROM pipelines WHERE id = ?", pipelineId)
+		var pipeline database.Pipeline
+		err := db.Get(&pipeline, database.GetPipelineById, pipelineId)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		var job JobInstance
-		err = db.Get(&job, "SELECT * FROM jobs WHERE pipeline_id = ? AND name = ?", pipelineId, jobName)
+		var job database.Job
+		err = db.Get(&job, database.GetJobByNameAndPipelineId, jobName, pipelineId)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		type LogLine struct {
-			Stream   stdstreams.Stream
-			Line     string
-			LoggedAt time.Time `db:"logged_at"`
-		}
-
-		var logLines []LogLine
-		db.Select(&logLines, "SELECT stream, line, logged_at FROM logs JOIN jobs ON jobs.id = logs.job_id WHERE jobs.name = ? AND jobs.pipeline_id = ? ORDER BY logged_at ASC", jobName, pipelineId)
+		var logLines []database.Log
+		db.Select(&logLines, database.SelectLogsByJobNameAndPipelineId, jobName, pipelineId)
 
 		data := struct {
-			Pipe *PipelineInstance
-			Job  *JobInstance
-			Log  []LogLine
+			Pipe *database.Pipeline
+			Job  *database.Job
+			Log  []database.Log
 		}{
 			&pipeline,
 			&job,

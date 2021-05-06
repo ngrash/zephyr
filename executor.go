@@ -8,63 +8,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/ngrash/zephyr/config"
+	"github.com/ngrash/zephyr/database"
 	"github.com/ngrash/zephyr/stdstreams"
 )
-
-type InstanceStatus uint8
-
-const (
-	StatusPending InstanceStatus = iota
-	StatusRunning
-	StatusCompleted
-	StatusFailed
-	StatusCancelled
-)
-
-func (i InstanceStatus) String() string {
-	switch i {
-	case StatusPending:
-		return "pending"
-	case StatusRunning:
-		return "running"
-	case StatusCompleted:
-		return "completed"
-	case StatusFailed:
-		return "failed"
-	case StatusCancelled:
-		return "cancelled"
-	default:
-		return "<unknown>"
-	}
-}
-
-type PipelineInstance struct {
-	Id        string         `db:"id"`
-	Name      string         `db:"name"`
-	Status    InstanceStatus `db:"status"`
-	CreatedAt time.Time      `db:"created_at"`
-	UpdatedAt time.Time      `db:"updated_at"`
-}
-
-func (p *PipelineInstance) UpdateStatus(db *sqlx.DB, s InstanceStatus) {
-	p.Status = s
-	db.MustExec("UPDATE pipelines SET status = ?, updated_at = ? WHERE id = ?", p.Status, time.Now().UTC(), p.Id)
-}
-
-type JobInstance struct {
-	Id         int64
-	Name       string         `db:"name"`
-	Command    string         `db:"command"`
-	Status     InstanceStatus `db:"status"`
-	PipelineId string         `db:"pipeline_id"`
-	CreatedAt  time.Time      `db:"created_at"`
-	UpdatedAt  time.Time      `db:"updated_at"`
-}
-
-func (j *JobInstance) UpdateStatus(db *sqlx.DB, s InstanceStatus) {
-	j.Status = s
-	db.MustExec("UPDATE jobs SET status = ?, updated_at = ? WHERE id = ?", j.Status, time.Now().UTC(), j.Id)
-}
 
 type Executor struct {
 	db *sqlx.DB
@@ -77,23 +23,23 @@ func NewExecutor(db *sqlx.DB) *Executor {
 func (e *Executor) Run(def *config.Pipeline) string {
 	log.Printf("Executor.Run({Name: %s})", def.Name)
 
-	instance := &PipelineInstance{
+	instance := &database.Pipeline{
 		Id:     uuid.NewString(),
 		Name:   def.Name,
-		Status: StatusPending,
+		Status: database.StatusPending,
 	}
 	now := time.Now().UTC()
-	e.db.MustExec("INSERT INTO pipelines (id, name, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+	e.db.MustExec(database.CreatePipeline,
 		instance.Id,
 		instance.Name,
 		instance.Status,
 		now,
 		now)
 
-	jis := make([]*JobInstance, len(def.Jobs))
+	jis := make([]*database.Job, len(def.Jobs))
 	for i, j := range def.Jobs {
-		job := &JobInstance{Status: StatusPending, Name: j.Name, Command: j.Command}
-		result := e.db.MustExec("INSERT INTO jobs (name, command, pipeline_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+		job := &database.Job{Status: database.StatusPending, Name: j.Name, Command: j.Command}
+		result := e.db.MustExec(database.CreateJob,
 			job.Name,
 			job.Command,
 			instance.Id,
@@ -110,14 +56,14 @@ func (e *Executor) Run(def *config.Pipeline) string {
 	return instance.Id
 }
 
-func (e *Executor) AsyncPipelineRoutine(p *PipelineInstance, js []*JobInstance) {
-	p.UpdateStatus(e.db, StatusRunning)
+func (e *Executor) AsyncPipelineRoutine(p *database.Pipeline, js []*database.Job) {
+	e.setPipelineStatus(p, database.StatusRunning)
 
 	for idx, job := range js {
-		job.UpdateStatus(e.db, StatusRunning)
+		e.setJobStatus(job, database.StatusRunning)
 
 		streams := stdstreams.NewLogWithCallback(func(newLine *stdstreams.Line) {
-			e.db.MustExec("INSERT INTO logs (stream, job_id, line, logged_at) VALUES (?, ?, ?, ?)",
+			e.db.MustExec(database.CreateLog,
 				newLine.Stream,
 				job.Id,
 				newLine.Text,
@@ -129,18 +75,30 @@ func (e *Executor) AsyncPipelineRoutine(p *PipelineInstance, js []*JobInstance) 
 		cmd.Stdout = streams.Stdout()
 
 		if err := cmd.Run(); err != nil {
-			job.UpdateStatus(e.db, StatusFailed)
-			p.UpdateStatus(e.db, StatusFailed)
+			e.setPipelineStatus(p, database.StatusFailed)
+			e.setJobStatus(job, database.StatusFailed)
 
 			for j := idx + 1; j < len(js); j++ {
-				js[j].UpdateStatus(e.db, StatusCancelled)
+				e.setJobStatus(js[j], database.StatusCancelled)
 			}
 
 			return
 		}
 
-		job.UpdateStatus(e.db, StatusCompleted)
+		e.setJobStatus(job, database.StatusCompleted)
 	}
 
-	p.UpdateStatus(e.db, StatusCompleted)
+	e.setPipelineStatus(p, database.StatusCompleted)
+}
+
+func (e *Executor) setPipelineStatus(p *database.Pipeline, st database.Status) {
+	p.Status = st
+	p.UpdatedAt = time.Now().UTC()
+	e.db.MustExec(database.UpdatePipelineStatusById, p.Status, p.UpdatedAt, p.Id)
+}
+
+func (e *Executor) setJobStatus(j *database.Job, st database.Status) {
+	j.Status = st
+	j.UpdatedAt = time.Now().UTC()
+	e.db.MustExec(database.UpdateJobStatusById, j.Status, j.UpdatedAt, j.Id)
 }
