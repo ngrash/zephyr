@@ -14,24 +14,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-type PipelineDefinition struct {
-	Handle   string
-	Schedule string
-	Jobs     []JobDefinition
-
-	schedulerJob *gocron.Job
-}
-
-type JobDefinition struct {
-	Handle  string
-	Command string
-}
-
-type PipelineViewModel struct {
-	*PipelineDefinition
-	NextRun *time.Time
-	LastRun *time.Time
-}
+var scheduled map[string]*gocron.Job
 
 func main() {
 
@@ -43,53 +26,46 @@ func main() {
 
 	executor := NewExecutor(db)
 
-	ps, err := config.LoadPipelines("pipelines.yaml")
-	pipelines := make([]*PipelineDefinition, len(ps))
-	for i, p := range ps {
-		jobs := make([]JobDefinition, len(p.Jobs))
-		for ii, j := range p.Jobs {
-			jobs[ii] = JobDefinition{Handle: j.Name, Command: j.Command}
-		}
-		pipelines[i] = &PipelineDefinition{
-			Handle:   p.Name,
-			Schedule: p.Schedule,
-			Jobs:     jobs,
-		}
-	}
+	pipelines, err := config.LoadPipelines("pipelines.yaml")
 
 	scheduler := gocron.NewScheduler(time.UTC)
+	scheduled = make(map[string]*gocron.Job)
 	for _, p := range pipelines {
 		pipeline := p
 		if p.Schedule != "" {
 			job, err := scheduler.Cron(p.Schedule).Do(func() {
-				executor.Run(pipeline)
+				executor.Run(&pipeline)
 			})
 			if err != nil {
 				log.Fatal(err)
 			}
-			p.schedulerJob = job
+			scheduled[p.Name] = job
 		}
 	}
 	scheduler.StartAsync()
 
-	pipelineByHandle := func(handle string) *PipelineDefinition {
-		var pipeline *PipelineDefinition
+	pipelineByName := func(name string) *config.Pipeline {
 		for _, p := range pipelines {
-			if p.Handle == handle {
-				pipeline = p
-				break
+			if p.Name == name {
+				return &p
 			}
 		}
-		return pipeline
+		return nil
 	}
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 
+		type PipelineViewModel struct {
+			config.Pipeline
+			NextRun *time.Time
+			LastRun *time.Time
+		}
+
 		vms := make([]PipelineViewModel, len(pipelines))
 		for i, p := range pipelines {
 			var nextRun *time.Time
-			if p.schedulerJob != nil {
-				t := p.schedulerJob.ScheduledTime()
+			if schedJob, ok := scheduled[p.Name]; ok {
+				t := schedJob.ScheduledTime()
 				nextRun = &t
 			}
 
@@ -104,8 +80,8 @@ func main() {
 	})
 
 	http.HandleFunc("/run", func(w http.ResponseWriter, r *http.Request) {
-		handle := r.FormValue("handle")
-		pipeline := pipelineByHandle(handle)
+		name := r.FormValue("name")
+		pipeline := pipelineByName(name)
 		id := executor.Run(pipeline)
 		http.Redirect(w, r, "pipeline_instance?id="+id, http.StatusSeeOther)
 	})
@@ -118,7 +94,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		def := pipelineByHandle(pipeline.Handle)
+		def := pipelineByName(pipeline.Name)
 
 		var jobs []JobInstance
 		err = db.Select(&jobs, "SELECT * FROM jobs WHERE pipeline_id = ?", id)
@@ -127,7 +103,7 @@ func main() {
 		}
 
 		data := struct {
-			Def      *PipelineDefinition
+			Def      *config.Pipeline
 			Instance *PipelineInstance
 			Jobs     []JobInstance
 		}{
@@ -143,11 +119,19 @@ func main() {
 
 	http.HandleFunc("/job_instance", func(w http.ResponseWriter, r *http.Request) {
 		pipelineId := r.FormValue("pipeline_id")
-		jobHandle := r.FormValue("handle")
+		jobName := r.FormValue("name")
 
 		var pipeline PipelineInstance
-		db.Get(&pipeline, "SELECT * FROM pipelines WHERE id = ?", pipelineId)
-		def := pipelineByHandle(pipeline.Handle)
+		err := db.Get(&pipeline, "SELECT * FROM pipelines WHERE id = ?", pipelineId)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		var job JobInstance
+		err = db.Get(&job, "SELECT * FROM jobs WHERE pipeline_id = ? AND name = ?", pipelineId, jobName)
+		if err != nil {
+			log.Fatal(err)
+		}
 
 		type LogLine struct {
 			Stream   stdstreams.Stream
@@ -156,17 +140,15 @@ func main() {
 		}
 
 		var logLines []LogLine
-		db.Select(&logLines, "SELECT stream, line, logged_at FROM logs JOIN jobs ON jobs.id = logs.job_id WHERE jobs.handle = ? AND jobs.pipeline_id = ? ORDER BY logged_at ASC", jobHandle, pipelineId)
+		db.Select(&logLines, "SELECT stream, line, logged_at FROM logs JOIN jobs ON jobs.id = logs.job_id WHERE jobs.name = ? AND jobs.pipeline_id = ? ORDER BY logged_at ASC", jobName, pipelineId)
 
 		data := struct {
-			PipelineDef      *PipelineDefinition
-			PipelineInstance *PipelineInstance
-			JobHandle        string
-			Log              []LogLine
+			Pipe *PipelineInstance
+			Job  *JobInstance
+			Log  []LogLine
 		}{
-			def,
 			&pipeline,
-			jobHandle,
+			&job,
 			logLines,
 		}
 		tmpl := template.Must(template.ParseFiles("templates/job_instance.html"))

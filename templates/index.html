@@ -8,7 +8,7 @@
 
 <table>
 	<thead>
-		<th>Handle</th>
+		<th>Name</th>
 		<th>Next Run</th>
 		<th>Last Run</th>
 		<th>History</th>
@@ -17,13 +17,13 @@
 	<tbody>
 {{ range .Pipelines }}
 		<tr>
-			<td>{{ .Handle }}</td>
+			<td>{{ .Name }}</td>
 			<td>{{ .NextRun }}</td>
 			<td>{{ .LastRun }}</td>
 			<td>...</td>
 			<td>
 				<form method="post" action="run">
-					<input type="hidden" name="handle" value="{{ .Handle }}" />
+					<input type="hidden" name="name" value="{{ .Name }}" />
 					<input type="submit" value="Run" />
 				</form>
 			</td>

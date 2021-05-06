@@ -4,22 +4,22 @@
 </head>
 <body>
 
-<h1>{{.Def.Handle}}</h1>
+<h1>{{.Def.Name}}</h1>
 
 Status: {{ .Instance.Status }}
 
 <table>
 	<thead>
-		<th>Handle</th>
+		<th>Name</th>
 		<th>Status</th>
 		<th>Actions</th>
 	</thead>
 	<tbody>
 {{ range .Jobs }}
 		<tr>
-			<td>{{ .Handle }}</td>
+			<td>{{ .Name }}</td>
 			<td>{{ .Status }}</td>
-			<td><a href="job_instance?handle={{ .Handle }}&pipeline_id={{ $.Instance.Id }}">Inspect</td>
+			<td><a href="job_instance?name={{ .Name }}&pipeline_id={{ $.Instance.Id }}">Inspect</td>
 		</tr>
 {{ end }}
 	</tbody>

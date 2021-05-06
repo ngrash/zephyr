@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/ngrash/zephyr/config"
 	"github.com/ngrash/zephyr/stdstreams"
 )
 
@@ -38,13 +39,11 @@ func (i InstanceStatus) String() string {
 }
 
 type PipelineInstance struct {
-	Id        string              `db:"id"`
-	Handle    string              `db:"handle"`
-	Def       *PipelineDefinition `db:"-"`
-	Status    InstanceStatus      `db:"status"`
-	Jobs      []*JobInstance      `db:"-"`
-	CreatedAt time.Time           `db:"created_at"`
-	UpdatedAt time.Time           `db:"updated_at"`
+	Id        string         `db:"id"`
+	Name      string         `db:"name"`
+	Status    InstanceStatus `db:"status"`
+	CreatedAt time.Time      `db:"created_at"`
+	UpdatedAt time.Time      `db:"updated_at"`
 }
 
 func (p *PipelineInstance) UpdateStatus(db *sqlx.DB, s InstanceStatus) {
@@ -54,13 +53,12 @@ func (p *PipelineInstance) UpdateStatus(db *sqlx.DB, s InstanceStatus) {
 
 type JobInstance struct {
 	Id         int64
-	Handle     string          `db:"handle"`
-	Def        JobDefinition   `db:"-"`
-	Status     InstanceStatus  `db:"status"`
-	Log        *stdstreams.Log `db:"-"`
-	PipelineId string          `db:"pipeline_id"`
-	CreatedAt  time.Time       `db:"created_at"`
-	UpdatedAt  time.Time       `db:"updated_at"`
+	Name       string         `db:"name"`
+	Command    string         `db:"command"`
+	Status     InstanceStatus `db:"status"`
+	PipelineId string         `db:"pipeline_id"`
+	CreatedAt  time.Time      `db:"created_at"`
+	UpdatedAt  time.Time      `db:"updated_at"`
 }
 
 func (j *JobInstance) UpdateStatus(db *sqlx.DB, s InstanceStatus) {
@@ -76,49 +74,49 @@ func NewExecutor(db *sqlx.DB) *Executor {
 	return &Executor{db}
 }
 
-func (e *Executor) Run(def *PipelineDefinition) string {
-	log.Printf("Executor.Run({Handle: %s})", def.Handle)
+func (e *Executor) Run(def *config.Pipeline) string {
+	log.Printf("Executor.Run({Name: %s})", def.Name)
 
 	instance := &PipelineInstance{
 		Id:     uuid.NewString(),
-		Handle: def.Handle,
-		Def:    def,
+		Name:   def.Name,
 		Status: StatusPending,
-		Jobs:   make([]*JobInstance, len(def.Jobs)),
 	}
 	now := time.Now().UTC()
-	e.db.MustExec("INSERT INTO pipelines (id, handle, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+	e.db.MustExec("INSERT INTO pipelines (id, name, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
 		instance.Id,
-		instance.Handle,
+		instance.Name,
 		instance.Status,
 		now,
 		now)
 
+	jis := make([]*JobInstance, len(def.Jobs))
 	for i, j := range def.Jobs {
-		job := &JobInstance{Def: j, Status: StatusPending, Handle: j.Handle}
-		instance.Jobs[i] = job
-		result := e.db.MustExec("INSERT INTO jobs (handle, pipeline_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
-			job.Handle,
+		job := &JobInstance{Status: StatusPending, Name: j.Name, Command: j.Command}
+		result := e.db.MustExec("INSERT INTO jobs (name, command, pipeline_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+			job.Name,
+			job.Command,
 			instance.Id,
 			job.Status,
 			now,
 			now)
 		id, _ := result.LastInsertId()
 		job.Id = id
+		jis[i] = job
 	}
 
-	go e.AsyncPipelineRoutine(instance)
+	go e.AsyncPipelineRoutine(instance, jis)
 
 	return instance.Id
 }
 
-func (e *Executor) AsyncPipelineRoutine(i *PipelineInstance) {
-	i.UpdateStatus(e.db, StatusRunning)
+func (e *Executor) AsyncPipelineRoutine(p *PipelineInstance, js []*JobInstance) {
+	p.UpdateStatus(e.db, StatusRunning)
 
-	for idx, job := range i.Jobs {
+	for idx, job := range js {
 		job.UpdateStatus(e.db, StatusRunning)
 
-		job.Log = stdstreams.NewLogWithCallback(func(newLine *stdstreams.Line) {
+		streams := stdstreams.NewLogWithCallback(func(newLine *stdstreams.Line) {
 			e.db.MustExec("INSERT INTO logs (stream, job_id, line, logged_at) VALUES (?, ?, ?, ?)",
 				newLine.Stream,
 				job.Id,
@@ -126,16 +124,16 @@ func (e *Executor) AsyncPipelineRoutine(i *PipelineInstance) {
 				newLine.Time.UTC())
 		})
 
-		cmd := exec.Command("sh", "-c", job.Def.Command)
-		cmd.Stderr = job.Log.Stderr()
-		cmd.Stdout = job.Log.Stdout()
+		cmd := exec.Command("sh", "-c", job.Command)
+		cmd.Stderr = streams.Stderr()
+		cmd.Stdout = streams.Stdout()
 
 		if err := cmd.Run(); err != nil {
 			job.UpdateStatus(e.db, StatusFailed)
-			i.UpdateStatus(e.db, StatusFailed)
+			p.UpdateStatus(e.db, StatusFailed)
 
-			for j := idx + 1; j < len(i.Jobs); j++ {
-				i.Jobs[j].UpdateStatus(e.db, StatusCancelled)
+			for j := idx + 1; j < len(js); j++ {
+				js[j].UpdateStatus(e.db, StatusCancelled)
 			}
 
 			return
@@ -144,5 +142,5 @@ func (e *Executor) AsyncPipelineRoutine(i *PipelineInstance) {
 		job.UpdateStatus(e.db, StatusCompleted)
 	}
 
-	i.UpdateStatus(e.db, StatusCompleted)
+	p.UpdateStatus(e.db, StatusCompleted)
 }

@@ -5,7 +5,7 @@ import "github.com/jmoiron/sqlx"
 func MigrateSchema(db *sqlx.DB) {
 	db.MustExec(`CREATE TABLE IF NOT EXISTS pipelines (
 		id         TEXT PRIMARY KEY,
-		handle     TEXT     NOT NULL,
+		name       TEXT     NOT NULL,
 		status     TEXT     NOT NULL,
 		created_at DATETIME NOT NULL,
 		updated_at DATETIME NOT NULL
@@ -14,7 +14,8 @@ func MigrateSchema(db *sqlx.DB) {
 	db.MustExec(`CREATE TABLE IF NOT EXISTS jobs (
 		id          INTEGER  PRIMARY KEY,
 		pipeline_id TEXT     NOT NULL REFERENCES pipelines(id),
-		handle      TEXT     NOT NULL,
+		name        TEXT     NOT NULL,
+		command     TEXT     NOT NULL,
 		status      TEXT     NOT NULL,
 		created_at  DATETIME NOT NULL,
 		updated_at  DATETIME NOT NULL
