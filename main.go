@@ -53,6 +53,8 @@ func main() {
 		return nil
 	}
 
+	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("./assets"))))
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 
 		type Run struct {
@@ -62,24 +64,23 @@ func main() {
 
 		type PipelineViewModel struct {
 			config.Pipeline
-			NextRun *time.Time
-			LastRun *time.Time
+			NextRun string
+			LastRun string
 			History []Run
 		}
 
 		vms := make([]PipelineViewModel, len(pipelines))
 		for i, p := range pipelines {
-			var nextRun *time.Time
+			nextRun := "n/a"
 			if schedJob, ok := scheduled[p.Name]; ok {
-				t := schedJob.ScheduledTime()
-				nextRun = &t
+				nextRun = schedJob.ScheduledTime().Format(time.RFC3339)
 			}
 
-			var lastRun *time.Time
+			lastRun := "n/a"
 			var latest []database.Pipeline
 			db.Select(&latest, database.SelectLatestPipelinesByName, p.Name)
 			if len(latest) > 0 {
-				lastRun = &(latest[0].CreatedAt)
+				lastRun = latest[0].CreatedAt.Format(time.RFC3339)
 			}
 
 			history := make([]Run, len(latest))

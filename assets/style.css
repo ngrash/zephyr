@@ -1,0 +1,96 @@
+* {
+	box-sizing: border-box;
+}
+html {
+	/* https://mycolor.space/?hex=%23D770AD&sub=1 */
+	--color-background: #ffe4fc;
+	--color-link: #247edc;
+	--color-link-hover: #a075ce;
+	--color-title: #007fa0;
+
+	font-family: "Helvetica", "Arial", arial;
+}
+
+h1, h2 {
+	color: var(--color-title);
+}
+
+a:link {
+	color: var(--color-link);
+}
+
+a:visited {
+	color: var(--color-link);
+}
+
+a:active {
+	color: var(--color-link);
+}
+
+a:hover {
+	color: var(--color-link-hover);
+}
+
+body {
+	margin: 0;
+}
+
+header {
+	background-color: var(--color-background);
+}
+
+header h1 {
+	margin: 0;
+	padding: 1rem;
+	font-family: "Comic Sans MS", "Comic Sans", cursive;
+	vertical-align: middle;
+}
+
+header h1 img {
+	height: 2rem;
+	position: relative;
+	top: 0.3rem;
+}
+
+header nav ul {
+	margin: 0;
+	padding: 1rem;
+}
+
+header nav li {
+	list-style-type: none;
+}
+
+nav.breadcrumb {
+	margin: 1rem;
+}
+
+nav.breadcrumb ol {
+	padding: 0;
+}
+
+nav.breadcrumb li {
+	display: inline-block;
+	list-style-type: none;
+}
+
+nav.breadcrumb li + li:before {
+	content: "» ";
+}
+
+nav.breadcrumb a {
+	text-decoration: none;
+}
+
+nav.breadcrumb a:hover {
+	text-decoration: underline;
+}
+
+main {
+	margin-left: 1rem;
+}
+
+pre {
+	overflow-y: scroll;
+	width: 100%;
+}
