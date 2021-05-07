@@ -20,7 +20,11 @@
 			<td>{{ .Name }}</td>
 			<td>{{ .NextRun }}</td>
 			<td>{{ .LastRun }}</td>
-			<td>...</td>
+			<td>
+	{{ range .History }}
+				<a href="pipeline_instance?id={{.Id}}" class="{{.Status}}">#</a>
+	{{ end }}
+			</td>
 			<td>
 				<form method="post" action="run">
 					<input type="hidden" name="name" value="{{ .Name }}" />

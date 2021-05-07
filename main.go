@@ -55,10 +55,16 @@ func main() {
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 
+		type Run struct {
+			Id     string
+			Status string
+		}
+
 		type PipelineViewModel struct {
 			config.Pipeline
 			NextRun *time.Time
 			LastRun *time.Time
+			History []Run
 		}
 
 		vms := make([]PipelineViewModel, len(pipelines))
@@ -70,13 +76,22 @@ func main() {
 			}
 
 			var lastRun *time.Time
-			var history []database.Pipeline
-			db.Select(&history, database.SelectLatestPipelinesByName, p.Name)
-			if len(history) > 0 {
-				lastRun = &(history[0].CreatedAt)
+			var latest []database.Pipeline
+			db.Select(&latest, database.SelectLatestPipelinesByName, p.Name)
+			if len(latest) > 0 {
+				lastRun = &(latest[0].CreatedAt)
 			}
 
-			vms[i] = PipelineViewModel{p, nextRun, lastRun}
+			history := make([]Run, len(latest))
+			for i := 0; i < len(latest); i++ {
+				r := latest[len(latest)-(1+i)]
+				history[i] = Run{
+					Id:     r.Id,
+					Status: r.Status.String(),
+				}
+			}
+
+			vms[i] = PipelineViewModel{p, nextRun, lastRun, history}
 		}
 
 		data := struct{ Pipelines []PipelineViewModel }{vms}
