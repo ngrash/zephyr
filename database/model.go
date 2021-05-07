@@ -62,7 +62,7 @@ const (
 	CreateJob                 = "INSERT INTO jobs (name, command, pipeline_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
 	UpdateJobStatusById       = "UPDATE jobs SET status = ?, updated_at = ? WHERE id = ?"
 	SelectJobsByPipelineId    = "SELECT * FROM jobs WHERE pipeline_id = ?"
-	GetJobByNameAndPipelineId = "SELECT * FROM jobs WHERE AND name = ? AND pipeline_id = ? "
+	GetJobByNameAndPipelineId = "SELECT * FROM jobs WHERE name = ? AND pipeline_id = ? "
 )
 
 type Log struct {
