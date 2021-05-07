@@ -1,10 +1,17 @@
-<!doctype html>
-<html>
-<head>
-</head>
-<body>
+{{ template "base" . }}
 
-<h1>{{.Def.Name}}</h1>
+{{ define "title" }} {{ .Def.Name }} {{ end }}
+
+{{ define "breadcrumb" }} 
+<ol>
+	<li><a href=".">Pipelines</a></li>
+	<li><a aria-current="page" href="pipeline_instance?id={{ .Instance.Id }}">{{ .Def.Name }}</a></li>
+</ol>
+{{ end }}
+
+{{ define "main" }}
+
+<h2>{{.Def.Name}}</h2>
 
 Status: {{ .Instance.Status }}
 
@@ -19,11 +26,10 @@ Status: {{ .Instance.Status }}
 		<tr>
 			<td>{{ .Name }}</td>
 			<td>{{ .Status }}</td>
-			<td><a href="job_instance?name={{ .Name }}&pipeline_id={{ $.Instance.Id }}">Inspect</td>
+			<td><a href="job_instance?name={{ .Name }}&pipeline_id={{ $.Instance.Id }}">Inspect</a></td>
 		</tr>
 {{ end }}
 	</tbody>
 </table>
 
-</body>
-</html>
+{{ end }}

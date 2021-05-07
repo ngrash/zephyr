@@ -1,0 +1,25 @@
+{{ define "base" }}
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<title>{{ template "title" . }} - Zephyr</title>
+	</head>
+	<body>
+		<header>
+			<h1>Zephyr</h1>
+			<nav aria-label="Main">
+				<ul>
+					<li><a href=".">Pipelines</a></li>
+				</ul>
+			</nav>
+		</header>
+		<nav aria-label="Breadcrumb" class="breadcrumb">
+			{{ template "breadcrumb" . }}
+		</nav>
+		<main>
+			{{ template "main" . }}
+		</main>
+	</body>
+</html>
+{{ end }}

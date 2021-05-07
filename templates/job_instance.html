@@ -1,15 +1,28 @@
-<!doctype html>
-<html>
-<head>
-</head>
-<body>
+{{ template "base" . }}
 
-<h1>{{.Job.Name}}</h1>
+{{ define "title" }} {{.Job.Name }} {{ end }}
+
+{{ define "breadcrumb" }}
+<ol>
+	<li><a href=".">Pipelines</a></li>
+	<li><a href="pipeline_instance?id={{ .Pipe.Id }}">{{ .Pipe.Name }}</a></li>
+	<li><a aria-current="page" href="job_instance?name={{ .Job.Name }}&pipeline_id={{ .Pipe.Id }}">{{ .Job.Name }}</a></li>
+</ol>
+{{ end }}
+
+{{ define "main" }}
+
+<h2>{{.Job.Name}}</h2>
+
+<div>
+	Status: {{ .Job.Status }}
+</div>
+
+<kbd>{{.Job.Command}}</kbd>
 
 <pre>
-{{ range .Log }}{{ . }}
+{{ range .Log }}{{ . | html }}
 {{ end }}
 </pre>
 
-</body>
-</html>
+{{ end }}

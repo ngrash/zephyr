@@ -95,7 +95,7 @@ func main() {
 		}
 
 		data := struct{ Pipelines []PipelineViewModel }{vms}
-		tmpl := template.Must(template.ParseFiles("templates/index.html"))
+		tmpl := template.Must(template.ParseFiles("templates/index.html", "templates/base.layout.html"))
 		if err := tmpl.Execute(w, data); err != nil {
 			log.Print(err)
 		}
@@ -133,7 +133,7 @@ func main() {
 			&pipeline,
 			jobs,
 		}
-		tmpl := template.Must(template.ParseFiles("templates/pipeline_instance.html"))
+		tmpl := template.Must(template.ParseFiles("templates/pipeline_instance.html", "templates/base.layout.html"))
 		if err := tmpl.Execute(w, data); err != nil {
 			log.Print(err)
 		}
@@ -167,7 +167,7 @@ func main() {
 			&job,
 			logLines,
 		}
-		tmpl := template.Must(template.ParseFiles("templates/job_instance.html"))
+		tmpl := template.Must(template.ParseFiles("templates/job_instance.html", "templates/base.layout.html"))
 		if err := tmpl.Execute(w, data); err != nil {
 			log.Print(err)
 		}

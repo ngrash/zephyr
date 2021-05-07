@@ -1,10 +1,16 @@
-<!doctype html>
-<html>
-<head>
-</head>
-<body>
+{{ template "base" . }}
 
-<h1>Pipelines</h1>
+{{ define "title" }} Pipelines {{ end }}
+
+{{ define "breadcrumb" }}
+<ol>
+	<li><a aria-current="page" href=".">Pipelines</a></li>
+</ol>
+{{ end }}
+
+{{ define "main" }}
+
+<h2>Pipelines</h2>
 
 <table>
 	<thead>
@@ -35,6 +41,4 @@
 {{ end }}
 	</tbody>
 </table>
-
-</body>
-</html>
+{{ end }}
