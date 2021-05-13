@@ -3,16 +3,16 @@
 {{ define "title" }} Pipelines {{ end }}
 
 {{ define "breadcrumb" }}
-<ol>
-	<li><a aria-current="page" href=".">Pipelines</a></li>
+<ol class="breadcrumb">
+	<li class="breadcrumb-item active" aria-current="page">Pipelines</li>
 </ol>
 {{ end }}
 
 {{ define "main" }}
 
-<h2>Pipelines</h2>
+<h2 class="h1">Pipelines</h2>
 
-<table>
+<table class="table">
 	<thead>
 		<th>Name</th>
 		<th>Next Run</th>
@@ -22,7 +22,7 @@
 	</thead>
 	<tbody>
 {{ range .Pipelines }}
-		<tr>
+		<tr class="align-middle">
 			<td>{{ .Name }}</td>
 			<td><time>{{ .NextRun }}</time></td>
 			<td><time>{{ .LastRun }}</time></td>
@@ -34,7 +34,7 @@
 			<td>
 				<form method="post" action="run">
 					<input type="hidden" name="name" value="{{ .Name }}" />
-					<input type="submit" value="Run" />
+					<input class="btn btn-sm btn-outline-primary" type="submit" value="Run" />
 				</form>
 			</td>
 		</tr>

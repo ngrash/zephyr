@@ -3,9 +3,9 @@
 {{ define "title" }} {{ .Def.Name }} {{ end }}
 
 {{ define "breadcrumb" }} 
-<ol>
-	<li><a href=".">Pipelines</a></li>
-	<li><a aria-current="page" href="pipeline_instance?id={{ .Instance.Id }}">{{ .Def.Name }}</a></li>
+<ol class="breadcrumb">
+	<li class="breadcrumb-item"><a href=".">Pipelines</a></li>
+	<li class="breadcrumb-item active" aria-current="page">{{ .Def.Name }}</li>
 </ol>
 {{ end }}
 
@@ -15,18 +15,18 @@
 
 Status: {{ .Instance.Status }}
 
-<table>
+<table class="table">
 	<thead>
-		<th>Name</th>
-		<th>Status</th>
-		<th>Actions</th>
+		<th scope="col">Name</th>
+		<th scope="col">Status</th>
+		<th scope="col">Actions</th>
 	</thead>
 	<tbody>
 {{ range .Jobs }}
-		<tr>
+		<tr class="align-middle">
 			<td>{{ .Name }}</td>
 			<td>{{ .Status }}</td>
-			<td><a href="job_instance?name={{ .Name }}&pipeline_id={{ $.Instance.Id }}">Inspect</a></td>
+			<td><a class="btn btn-sm btn-outline-secondary" href="job_instance?name={{ .Name }}&pipeline_id={{ $.Instance.Id }}">Inspect</a></td>
 		</tr>
 {{ end }}
 	</tbody>

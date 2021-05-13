@@ -3,10 +3,10 @@
 {{ define "title" }} {{.Job.Name }} {{ end }}
 
 {{ define "breadcrumb" }}
-<ol>
-	<li><a href=".">Pipelines</a></li>
-	<li><a href="pipeline_instance?id={{ .Pipe.Id }}">{{ .Pipe.Name }}</a></li>
-	<li><a aria-current="page" href="job_instance?name={{ .Job.Name }}&pipeline_id={{ .Pipe.Id }}">{{ .Job.Name }}</a></li>
+<ol class="breadcrumb">
+	<li class="breadcrumb-item"><a href=".">Pipelines</a></li>
+	<li class="breadcrumb-item"><a href="pipeline_instance?id={{ .Pipe.Id }}">{{ .Pipe.Name }}</a></li>
+	<li class="breadcrumb-item" aria-current="page">{{ .Job.Name }}</li>
 </ol>
 {{ end }}
 
