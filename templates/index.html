@@ -16,6 +16,7 @@
 	<table class="table">
 		<thead>
 			<th>Name</th>
+			<th>Status</th>
 			<th>Last Completed</th>
 			<th>Last Failed</th>
 			<th>Next Run</th>
@@ -26,6 +27,8 @@
 			<tr class="align-middle">
 				<td>
 					{{ .Name }}
+				</td>
+				<td>
 					<span class="badge bg-secondary">
 						{{ .LastStatus }}
 					</span>
