@@ -42,10 +42,12 @@ type Pipeline struct {
 }
 
 const (
-	CreatePipeline              = "INSERT INTO pipelines (id, name, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?)"
-	UpdatePipelineStatusById    = "UPDATE pipelines SET status = ?, updated_at = ? WHERE id = ?"
-	GetPipelineById             = "SELECT * FROM pipelines WHERE id = ?"
-	SelectLatestPipelinesByName = "SELECT * FROM pipelines WHERE name = ? ORDER BY created_at DESC LIMIT 5"
+	CreatePipeline                 = "INSERT INTO pipelines (id, name, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?)"
+	UpdatePipelineStatusById       = "UPDATE pipelines SET status = ?, updated_at = ? WHERE id = ?"
+	GetPipelineById                = "SELECT * FROM pipelines WHERE id = ?"
+	GetLastFailedPipelineByName    = "SELECT * FROM pipelines WHERE name = ? AND status = 3 ORDER BY updated_at DESC LIMIT 1"
+	GetLastCompletedPipelineByName = "SELECT * FROM pipelines WHERE name = ? AND status = 2 ORDER BY updated_at DESC LIMIT 1"
+	GetLastStatusByPipelineName    = "SELECT status FROM pipelines WHERE name = ? ORDER BY updated_at DESC LIMIT 1"
 )
 
 type Job struct {

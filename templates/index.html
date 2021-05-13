@@ -15,22 +15,32 @@
 <table class="table">
 	<thead>
 		<th>Name</th>
+		<th>Status</th>
+		<th>Last Completed</th>
+		<th>Last Failed</th>
 		<th>Next Run</th>
-		<th>Last Run</th>
-		<th>History</th>
 		<th>Actions</th>
 	</thead>
 	<tbody>
 {{ range .Pipelines }}
 		<tr class="align-middle">
 			<td>{{ .Name }}</td>
-			<td><time>{{ .NextRun }}</time></td>
-			<td><time>{{ .LastRun }}</time></td>
+			<td>{{ .LastStatus }}</td>
 			<td>
-	{{ range .History }}
-				<a href="pipeline_instance?id={{.Id}}" class="{{.Status}}">#</a>
-	{{ end }}
+				{{ if .LastCompleted }}
+				<a href="pipeline_instance?id={{.LastCompleted.Id}}"><time>{{ .LastCompletedAt }}</time></a>
+				{{ else }}
+					N/A
+				{{ end }}
 			</td>
+			<td>
+				{{ if .LastFailed }}
+				<a href="pipeline_instance?id={{.LastFailed.Id}}"><time>{{ .LastFailedAt }}</time></a>
+				{{ else }}
+					N/A
+				{{ end }}
+			</td>
+			<td><time>{{ .NextRunAt }}</time></td>
 			<td>
 				<form method="post" action="run">
 					<input type="hidden" name="name" value="{{ .Name }}" />

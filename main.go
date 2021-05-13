@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"html/template"
 	"log"
 	"net/http"
@@ -57,42 +58,54 @@ func main() {
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 
-		type Run struct {
-			Id     string
-			Status string
-		}
-
 		type PipelineViewModel struct {
 			config.Pipeline
-			NextRun string
-			LastRun string
-			History []Run
+			LastStatus      string
+			NextRunAt       string
+			LastCompleted   *database.Pipeline
+			LastCompletedAt string
+			LastFailed      *database.Pipeline
+			LastFailedAt    string
 		}
 
 		vms := make([]PipelineViewModel, len(pipelines))
 		for i, p := range pipelines {
-			nextRun := "n/a"
+
+			pvm := PipelineViewModel{p, "N/A", "N/A", nil, "N/A", nil, "N/A"}
+
 			if schedJob, ok := scheduled[p.Name]; ok {
-				nextRun = schedJob.ScheduledTime().Format(time.RFC3339)
+				pvm.NextRunAt = schedJob.ScheduledTime().Format(time.RFC3339)
 			}
 
-			lastRun := "n/a"
-			var latest []database.Pipeline
-			db.Select(&latest, database.SelectLatestPipelinesByName, p.Name)
-			if len(latest) > 0 {
-				lastRun = latest[0].CreatedAt.Format(time.RFC3339)
+			var err error
+
+			var lastStatus uint8
+			err = db.Get(&lastStatus, database.GetLastStatusByPipelineName, p.Name)
+			if err == nil {
+				pvm.LastStatus = database.Status(lastStatus).String()
+			} else if err != sql.ErrNoRows {
+				log.Fatal(err)
 			}
 
-			history := make([]Run, len(latest))
-			for i := 0; i < len(latest); i++ {
-				r := latest[len(latest)-(1+i)]
-				history[i] = Run{
-					Id:     r.Id,
-					Status: r.Status.String(),
-				}
+			var lastCompleted database.Pipeline
+			err = db.Get(&lastCompleted, database.GetLastCompletedPipelineByName, p.Name)
+			if err == nil {
+				pvm.LastCompleted = &lastCompleted
+				pvm.LastCompletedAt = lastCompleted.UpdatedAt.Format(time.RFC3339)
+			} else if err != sql.ErrNoRows {
+				log.Fatal(err)
 			}
 
-			vms[i] = PipelineViewModel{p, nextRun, lastRun, history}
+			var lastFailed database.Pipeline
+			err = db.Get(&lastFailed, database.GetLastFailedPipelineByName, p.Name)
+			if err == nil {
+				pvm.LastFailed = &lastFailed
+				pvm.LastFailedAt = lastFailed.UpdatedAt.Format(time.RFC3339)
+			} else if err != sql.ErrNoRows {
+				log.Fatal(err)
+			}
+
+			vms[i] = pvm
 		}
 
 		data := struct{ Pipelines []PipelineViewModel }{vms}
