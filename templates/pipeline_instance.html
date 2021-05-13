@@ -11,25 +11,33 @@
 
 {{ define "main" }}
 
-<h2>{{.Def.Name}}</h2>
+<h1>
+	{{.Def.Name}} 
+	<small class="text-muted">
+		<time>
+			{{ .Date }}
+		</time>
+	</small>
+	<span class="badge bg-secondary float-end">{{ .Instance.Status }}</span>
+</h2>
 
-Status: {{ .Instance.Status }}
-
-<table class="table">
-	<thead>
-		<th scope="col">Name</th>
-		<th scope="col">Status</th>
-		<th scope="col">Actions</th>
-	</thead>
-	<tbody>
-{{ range .Jobs }}
-		<tr class="align-middle">
-			<td>{{ .Name }}</td>
-			<td>{{ .Status }}</td>
-			<td><a class="btn btn-sm btn-outline-secondary" href="job_instance?name={{ .Name }}&pipeline_id={{ $.Instance.Id }}">Inspect</a></td>
-		</tr>
-{{ end }}
-	</tbody>
-</table>
+<div class="table-responsive">
+	<table class="table">
+		<thead>
+			<th scope="col">Name</th>
+			<th scope="col">Status</th>
+			<th scope="col">Actions</th>
+		</thead>
+		<tbody>
+	{{ range .Jobs }}
+			<tr class="align-middle">
+				<td>{{ .Name }}</td>
+				<td><span class="badge bg-secondary">{{ .Status }}</span></td>
+				<td><a class="btn btn-sm btn-outline-secondary" href="job_instance?name={{ .Name }}&pipeline_id={{ $.Instance.Id }}">Inspect</a></td>
+			</tr>
+	{{ end }}
+		</tbody>
+	</table>
+</div>
 
 {{ end }}

@@ -12,11 +12,17 @@
 
 {{ define "main" }}
 
-<h2>{{.Job.Name}}</h2>
-
-<div>
-	Status: {{ .Job.Status }}
-</div>
+<h1>
+	{{.Job.Name}}
+	<small class="text-muted">
+		<time>
+		{{ .Date }}
+		</time>
+	</small>
+	<span class="badge bg-secondary float-end">
+		{{ .Job.Status }}
+	</span>
+</h1>
 
 <kbd>{{.Job.Command}}</kbd>
 

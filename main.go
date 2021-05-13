@@ -142,10 +142,12 @@ func main() {
 			Def      *config.Pipeline
 			Instance *database.Pipeline
 			Jobs     []database.Job
+			Date     string
 		}{
 			def,
 			&pipeline,
 			jobs,
+			pipeline.UpdatedAt.Format(time.RFC3339),
 		}
 		tmpl := template.Must(template.ParseFiles("templates/pipeline_instance.html", "templates/base.layout.html"))
 		if err := tmpl.Execute(w, data); err != nil {
@@ -176,10 +178,12 @@ func main() {
 			Pipe *database.Pipeline
 			Job  *database.Job
 			Log  []database.Log
+			Date string
 		}{
 			&pipeline,
 			&job,
 			logLines,
+			job.UpdatedAt.Format(time.RFC3339),
 		}
 		tmpl := template.Must(template.ParseFiles("templates/job_instance.html", "templates/base.layout.html"))
 		if err := tmpl.Execute(w, data); err != nil {

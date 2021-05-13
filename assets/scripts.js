@@ -8,7 +8,7 @@ var units = {
   second: 1000
 }
 
-var rtf = new Intl.RelativeTimeFormat(navigator.language, { numeric: 'auto' })
+var rtf = new Intl.RelativeTimeFormat(navigator.language, { numeric: 'auto', style: 'narrow' })
 
 var getRelativeTime = (d1, d2 = new Date()) => {
   var elapsed = d1 - d2
