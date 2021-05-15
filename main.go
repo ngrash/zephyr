@@ -54,13 +54,32 @@ func main() {
 		return nil
 	}
 
+	tmplFuncs := template.FuncMap{
+		"bsColor": func(s database.Status) string {
+			switch s {
+			case database.StatusPending:
+				return "primary"
+			case database.StatusRunning:
+				return "info"
+			case database.StatusCompleted:
+				return "success"
+			case database.StatusFailed:
+				return "danger"
+			case database.StatusCancelled:
+				return "warning"
+			default:
+				return "secondary"
+			}
+		},
+	}
+
 	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("./assets"))))
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 
 		type PipelineViewModel struct {
 			config.Pipeline
-			LastStatus      string
+			LastStatus      *database.Status
 			NextRunAt       string
 			LastCompleted   *database.Pipeline
 			LastCompletedAt string
@@ -71,7 +90,7 @@ func main() {
 		vms := make([]PipelineViewModel, len(pipelines))
 		for i, p := range pipelines {
 
-			pvm := PipelineViewModel{p, "N/A", "N/A", nil, "N/A", nil, "N/A"}
+			pvm := PipelineViewModel{p, nil, "N/A", nil, "N/A", nil, "N/A"}
 
 			if schedJob, ok := scheduled[p.Name]; ok {
 				pvm.NextRunAt = schedJob.ScheduledTime().Format(time.RFC3339)
@@ -82,7 +101,8 @@ func main() {
 			var lastStatus uint8
 			err = db.Get(&lastStatus, database.GetLastStatusByPipelineName, p.Name)
 			if err == nil {
-				pvm.LastStatus = database.Status(lastStatus).String()
+				st := database.Status(lastStatus)
+				pvm.LastStatus = &st
 			} else if err != sql.ErrNoRows {
 				log.Fatal(err)
 			}
@@ -109,7 +129,11 @@ func main() {
 		}
 
 		data := struct{ Pipelines []PipelineViewModel }{vms}
-		tmpl := template.Must(template.ParseFiles("templates/index.html", "templates/base.layout.html"))
+		tmpl := template.Must(
+			template.New("index.html").
+				Funcs(tmplFuncs).
+				ParseFiles("templates/index.html", "templates/base.layout.html"),
+		)
 		if err := tmpl.Execute(w, data); err != nil {
 			log.Print(err)
 		}
@@ -149,7 +173,11 @@ func main() {
 			jobs,
 			pipeline.UpdatedAt.Format(time.RFC3339),
 		}
-		tmpl := template.Must(template.ParseFiles("templates/pipeline_instance.html", "templates/base.layout.html"))
+		tmpl := template.Must(
+			template.New("pipeline_instance.html").
+				Funcs(tmplFuncs).
+				ParseFiles("templates/pipeline_instance.html", "templates/base.layout.html"),
+		)
 		if err := tmpl.Execute(w, data); err != nil {
 			log.Print(err)
 		}
@@ -185,7 +213,11 @@ func main() {
 			logLines,
 			job.UpdatedAt.Format(time.RFC3339),
 		}
-		tmpl := template.Must(template.ParseFiles("templates/job_instance.html", "templates/base.layout.html"))
+		tmpl := template.Must(
+			template.New("job_instance.html").
+				Funcs(tmplFuncs).
+				ParseFiles("templates/job_instance.html", "templates/base.layout.html"),
+		)
 		if err := tmpl.Execute(w, data); err != nil {
 			log.Print(err)
 		}
