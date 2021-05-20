@@ -1,9 +1,7 @@
 package main
 
 import (
-	"database/sql"
 	"flag"
-	"html/template"
 	"log"
 	"net/http"
 	"time"
@@ -11,7 +9,6 @@ import (
 	"github.com/go-co-op/gocron"
 	"github.com/jmoiron/sqlx"
 	"github.com/ngrash/zephyr/config"
-	"github.com/ngrash/zephyr/database"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -57,184 +54,11 @@ func main() {
 		}
 	}
 	scheduler.StartAsync()
-
-	pipelineByName := func(name string) *config.Pipeline {
-		for _, p := range pipelines {
-			if p.Name == name {
-				return &p
-			}
-		}
-		return nil
-	}
-
-	tmplFuncs := template.FuncMap{
-		"bsColor": func(s database.Status) string {
-			switch s {
-			case database.StatusPending:
-				return "primary"
-			case database.StatusRunning:
-				return "info"
-			case database.StatusCompleted:
-				return "success"
-			case database.StatusFailed:
-				return "danger"
-			case database.StatusCancelled:
-				return "warning"
-			default:
-				return "secondary"
-			}
-		},
-	}
-
 	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("./assets"))))
-
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-
-		type PipelineViewModel struct {
-			config.Pipeline
-			LastStatus      *database.Status
-			NextRunAt       string
-			LastCompleted   *database.Pipeline
-			LastCompletedAt string
-			LastFailed      *database.Pipeline
-			LastFailedAt    string
-		}
-
-		vms := make([]PipelineViewModel, len(pipelines))
-		for i, p := range pipelines {
-
-			pvm := PipelineViewModel{p, nil, "N/A", nil, "N/A", nil, "N/A"}
-
-			if schedJob, ok := scheduled[p.Name]; ok {
-				pvm.NextRunAt = schedJob.ScheduledTime().Format(time.RFC3339)
-			}
-
-			var err error
-
-			var lastStatus uint8
-			err = db.Get(&lastStatus, database.GetLastStatusByPipelineName, p.Name)
-			if err == nil {
-				st := database.Status(lastStatus)
-				pvm.LastStatus = &st
-			} else if err != sql.ErrNoRows {
-				log.Fatal(err)
-			}
-
-			var lastCompleted database.Pipeline
-			err = db.Get(&lastCompleted, database.GetLastCompletedPipelineByName, p.Name)
-			if err == nil {
-				pvm.LastCompleted = &lastCompleted
-				pvm.LastCompletedAt = lastCompleted.UpdatedAt.Format(time.RFC3339)
-			} else if err != sql.ErrNoRows {
-				log.Fatal(err)
-			}
-
-			var lastFailed database.Pipeline
-			err = db.Get(&lastFailed, database.GetLastFailedPipelineByName, p.Name)
-			if err == nil {
-				pvm.LastFailed = &lastFailed
-				pvm.LastFailedAt = lastFailed.UpdatedAt.Format(time.RFC3339)
-			} else if err != sql.ErrNoRows {
-				log.Fatal(err)
-			}
-
-			vms[i] = pvm
-		}
-
-		data := struct{ Pipelines []PipelineViewModel }{vms}
-		tmpl := template.Must(
-			template.New("index.html").
-				Funcs(tmplFuncs).
-				ParseFiles("templates/index.html", "templates/base.layout.html"),
-		)
-		if err := tmpl.Execute(w, data); err != nil {
-			log.Print(err)
-		}
-	})
-
-	http.HandleFunc("/run", func(w http.ResponseWriter, r *http.Request) {
-		name := r.FormValue("name")
-		pipeline := pipelineByName(name)
-		id := executor.Run(pipeline)
-		http.Redirect(w, r, "pipeline_instance?id="+id, http.StatusSeeOther)
-	})
-
-	http.HandleFunc("/pipeline_instance", func(w http.ResponseWriter, r *http.Request) {
-		id := r.FormValue("id")
-
-		var pipeline database.Pipeline
-		err := db.Get(&pipeline, database.GetPipelineById, id)
-		if err != nil {
-			log.Fatal(err)
-		}
-		def := pipelineByName(pipeline.Name)
-
-		var jobs []database.Job
-		err = db.Select(&jobs, database.SelectJobsByPipelineId, id)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		data := struct {
-			Def      *config.Pipeline
-			Instance *database.Pipeline
-			Jobs     []database.Job
-			Date     string
-		}{
-			def,
-			&pipeline,
-			jobs,
-			pipeline.UpdatedAt.Format(time.RFC3339),
-		}
-		tmpl := template.Must(
-			template.New("pipeline_instance.html").
-				Funcs(tmplFuncs).
-				ParseFiles("templates/pipeline_instance.html", "templates/base.layout.html"),
-		)
-		if err := tmpl.Execute(w, data); err != nil {
-			log.Print(err)
-		}
-	})
-
-	http.HandleFunc("/job_instance", func(w http.ResponseWriter, r *http.Request) {
-		pipelineId := r.FormValue("pipeline_id")
-		jobName := r.FormValue("name")
-
-		var pipeline database.Pipeline
-		err := db.Get(&pipeline, database.GetPipelineById, pipelineId)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		var job database.Job
-		err = db.Get(&job, database.GetJobByNameAndPipelineId, jobName, pipelineId)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		var logLines []database.Log
-		db.Select(&logLines, database.SelectLogsByJobNameAndPipelineId, jobName, pipelineId)
-
-		data := struct {
-			Pipe *database.Pipeline
-			Job  *database.Job
-			Log  []database.Log
-			Date string
-		}{
-			&pipeline,
-			&job,
-			logLines,
-			job.UpdatedAt.Format(time.RFC3339),
-		}
-		tmpl := template.Must(
-			template.New("job_instance.html").
-				Funcs(tmplFuncs).
-				ParseFiles("templates/job_instance.html", "templates/base.layout.html"),
-		)
-		if err := tmpl.Execute(w, data); err != nil {
-			log.Print(err)
-		}
-	})
+	http.HandleFunc("/", indexHandler(pipelines, db))
+	http.HandleFunc("/run", runHandler(pipelines, executor))
+	http.HandleFunc("/pipeline_instance", pipelineHandler(pipelines, db))
+	http.HandleFunc("/job_instance", jobHandler(db))
 
 	log.Print("serving")
 	log.Fatal(http.ListenAndServe(":8080", nil))

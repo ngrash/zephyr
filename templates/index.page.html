@@ -35,21 +35,21 @@
 				</td>
 				<td>
 					{{ if .LastCompleted }}
-					<a href="pipeline_instance?id={{.LastCompleted.Id}}"><time>{{ .LastCompletedAt }}</time></a>
+					<a href="{{ pipelinePath .LastCompleted.Id }}"><time>{{ .LastCompletedAt }}</time></a>
 					{{ else }}
 						N/A
 					{{ end }}
 				</td>
 				<td>
 					{{ if .LastFailed }}
-					<a href="pipeline_instance?id={{.LastFailed.Id}}"><time>{{ .LastFailedAt }}</time></a>
+					<a href="{{ pipelinePath .LastFailed.Id }}"><time>{{ .LastFailedAt }}</time></a>
 					{{ else }}
 						N/A
 					{{ end }}
 				</td>
 				<td><time>{{ .NextRunAt }}</time></td>
 				<td>
-					<form method="post" action="run">
+					<form method="post" action="{{ runPath }}">
 						<input type="hidden" name="name" value="{{ .Name }}" />
 						<input class="btn btn-sm btn-outline-primary" type="submit" value="Run" />
 					</form>
