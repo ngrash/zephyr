@@ -25,12 +25,12 @@
 </h1>
 
 <div class="card">
-	<div class="card-header">{{.Job.Command}}</div>
+	<div class="card-header"><kbd>{{.Job.Command}}</kbd></div>
 	<div class="card-body">
 		{{ with .Log }}
 		{{/* Beware of extra whitespace in <pre> tag below*/}}
 		<pre>
-{{ range .}}{{ . | html }}
+{{ range .}}{{ .Line | html }}
 {{ end }}{{ else }}<i>No output</i>{{ end }}</pre>
 	</div>
 </div>
