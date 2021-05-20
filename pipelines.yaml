@@ -8,6 +8,7 @@ Hello:
         say goodbye: echo Goodbye
 
 Fail:
+    alert: zephyr-alerts@example.com
     jobs:
         echo: "echo \"I'm going to fail\""
         sleep: sleep 1

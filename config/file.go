@@ -31,6 +31,7 @@ func (ps *Pipelines) UnmarshalYAML(value *yaml.Node) error {
 type Pipeline struct {
 	Name     string
 	Schedule string
+	Alert    string
 	Jobs     Jobs
 }
 

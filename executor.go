@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os/exec"
 	"time"
@@ -13,11 +14,12 @@ import (
 )
 
 type Executor struct {
-	db *sqlx.DB
+	db     *sqlx.DB
+	mailer Mailer
 }
 
-func NewExecutor(db *sqlx.DB) *Executor {
-	return &Executor{db}
+func NewExecutor(db *sqlx.DB, mailer Mailer) *Executor {
+	return &Executor{db, mailer}
 }
 
 func (e *Executor) Run(def *config.Pipeline) string {
@@ -51,13 +53,13 @@ func (e *Executor) Run(def *config.Pipeline) string {
 		jis[i] = job
 	}
 
-	go e.AsyncPipelineRoutine(instance, jis)
+	go e.AsyncPipelineRoutine(instance, jis, def)
 
 	return instance.Id
 }
 
-func (e *Executor) AsyncPipelineRoutine(p *database.Pipeline, js []*database.Job) {
-	e.setPipelineStatus(p, database.StatusRunning)
+func (e *Executor) AsyncPipelineRoutine(p *database.Pipeline, js []*database.Job, def *config.Pipeline) {
+	e.setPipelineStatus(p, database.StatusRunning, def.Alert)
 
 	for idx, job := range js {
 		e.setJobStatus(job, database.StatusRunning)
@@ -75,7 +77,7 @@ func (e *Executor) AsyncPipelineRoutine(p *database.Pipeline, js []*database.Job
 		cmd.Stdout = streams.Stdout()
 
 		if err := cmd.Run(); err != nil {
-			e.setPipelineStatus(p, database.StatusFailed)
+			e.setPipelineStatus(p, database.StatusFailed, def.Alert)
 			e.setJobStatus(job, database.StatusFailed)
 
 			for j := idx + 1; j < len(js); j++ {
@@ -88,13 +90,25 @@ func (e *Executor) AsyncPipelineRoutine(p *database.Pipeline, js []*database.Job
 		e.setJobStatus(job, database.StatusCompleted)
 	}
 
-	e.setPipelineStatus(p, database.StatusCompleted)
+	e.setPipelineStatus(p, database.StatusCompleted, def.Alert)
 }
 
-func (e *Executor) setPipelineStatus(p *database.Pipeline, st database.Status) {
+func (e *Executor) setPipelineStatus(p *database.Pipeline, st database.Status, alert string) {
 	p.Status = st
 	p.UpdatedAt = time.Now().UTC()
 	e.db.MustExec(database.UpdatePipelineStatusById, p.Status, p.UpdatedAt, p.Id)
+
+	if st == database.StatusFailed {
+		go func() {
+			if alert == "" {
+				return
+			}
+			err := e.mailer.Send(alert, fmt.Sprintf("Pipeline failed: %s", p.Name), fmt.Sprintf("A pipeline failed and was configured to alert you: __BASE_URL__/pipeline_instance?id=%s", p.Id))
+			if err != nil {
+				log.Printf("sending mail: %s", err)
+			}
+		}()
+	}
 }
 
 func (e *Executor) setJobStatus(j *database.Job, st database.Status) {
