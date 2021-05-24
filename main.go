@@ -57,8 +57,8 @@ func main() {
 	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("./assets"))))
 	http.HandleFunc("/", indexHandler(pipelines, db))
 	http.HandleFunc("/run", runHandler(pipelines, executor))
-	http.HandleFunc("/pipeline_instance", pipelineHandler(pipelines, db))
-	http.HandleFunc("/job_instance", jobHandler(db))
+	http.HandleFunc("/pipeline_instance", pipelineInstanceHandler(pipelines, db))
+	http.HandleFunc("/job_instance", jobInstanceHandler(db))
 
 	log.Print("serving")
 	log.Fatal(http.ListenAndServe(":8080", nil))

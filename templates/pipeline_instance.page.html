@@ -33,7 +33,7 @@
 			<tr class="align-middle">
 				<td>{{ .Name }}</td>
 				<td><span class="badge bg-{{ bsColor .Status }}">{{ .Status }}</span></td>
-				<td><a class="btn btn-sm btn-outline-secondary" href="{{ jobPath .Name $.Instance.Id }}">Inspect</a></td>
+				<td><a class="btn btn-sm btn-outline-secondary" href="{{ jobInstancePath .Name $.Instance.Id }}">Inspect</a></td>
 			</tr>
 	{{ end }}
 		</tbody>

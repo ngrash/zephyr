@@ -35,14 +35,14 @@
 				</td>
 				<td>
 					{{ if .LastCompleted }}
-					<a href="{{ pipelinePath .LastCompleted.Id }}"><time>{{ .LastCompletedAt }}</time></a>
+					<a href="{{ pipelineInstancePath .LastCompleted.Id }}"><time>{{ .LastCompletedAt }}</time></a>
 					{{ else }}
 						N/A
 					{{ end }}
 				</td>
 				<td>
 					{{ if .LastFailed }}
-					<a href="{{ pipelinePath .LastFailed.Id }}"><time>{{ .LastFailedAt }}</time></a>
+					<a href="{{ pipelineInstancePath .LastFailed.Id }}"><time>{{ .LastFailedAt }}</time></a>
 					{{ else }}
 						N/A
 					{{ end }}

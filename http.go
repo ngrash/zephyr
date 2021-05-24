@@ -30,24 +30,26 @@ var tmplFuncs = template.FuncMap{
 			return "secondary"
 		}
 	},
-	"indexPath":    indexPath,
-	"runPath":      runPath,
-	"pipelinePath": pipelinePath,
-	"jobPath":      jobPath,
+	"indexPath":            indexPath,
+	"runPath":              runPath,
+	"pipelineInstancePath": pipelineInstancePath,
+	"jobInstancePath":      jobInstancePath,
 }
 
 const (
-	indexPattern    = "/"
-	runPattern      = "/run"
-	pipelinePattern = "/pipeline_instance"
-	jobPattern      = "/job_instance"
+	indexPattern            = "/"
+	runPattern              = "/run"
+	pipelineInstancePattern = "/pipeline_instance"
+	jobInstancePattern      = "/job_instance"
 )
 
-func indexPath() string             { return indexPattern }
-func runPath() string               { return fmt.Sprintf("%s", runPattern) }
-func pipelinePath(id string) string { return fmt.Sprintf("%s?id=%s", pipelinePattern, id) }
-func jobPath(name, pipeline_id string) string {
-	return fmt.Sprintf("%s?name=%s&pipeline_id=%s", jobPattern, name, pipeline_id)
+func indexPath() string { return indexPattern }
+func runPath() string   { return fmt.Sprintf("%s", runPattern) }
+func pipelineInstancePath(id string) string {
+	return fmt.Sprintf("%s?id=%s", pipelineInstancePattern, id)
+}
+func jobInstancePath(name, pipeline_id string) string {
+	return fmt.Sprintf("%s?name=%s&pipeline_id=%s", jobInstancePattern, name, pipeline_id)
 }
 
 func indexHandler(pipelines []config.Pipeline, db *sqlx.DB) http.HandlerFunc {
@@ -121,11 +123,11 @@ func runHandler(pipelines []config.Pipeline, executor *Executor) http.HandlerFun
 		name := r.FormValue("name")
 		pipeline := pipelineByName(pipelines, name)
 		id := executor.Run(pipeline)
-		http.Redirect(w, r, pipelinePath(id), http.StatusSeeOther)
+		http.Redirect(w, r, pipelineInstancePath(id), http.StatusSeeOther)
 	}
 }
 
-func pipelineHandler(pipelines []config.Pipeline, db *sqlx.DB) http.HandlerFunc {
+func pipelineInstanceHandler(pipelines []config.Pipeline, db *sqlx.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.FormValue("id")
 
@@ -154,9 +156,9 @@ func pipelineHandler(pipelines []config.Pipeline, db *sqlx.DB) http.HandlerFunc 
 			pipeline.UpdatedAt.Format(time.RFC3339),
 		}
 		tmpl := template.Must(
-			template.New("pipeline.page.html").
+			template.New("pipeline_instance.page.html").
 				Funcs(tmplFuncs).
-				ParseFiles("templates/pipeline.page.html", "templates/base.layout.html"),
+				ParseFiles("templates/pipeline_instance.page.html", "templates/base.layout.html"),
 		)
 		if err := tmpl.Execute(w, data); err != nil {
 			log.Print(err)
@@ -164,7 +166,7 @@ func pipelineHandler(pipelines []config.Pipeline, db *sqlx.DB) http.HandlerFunc 
 	}
 }
 
-func jobHandler(db *sqlx.DB) http.HandlerFunc {
+func jobInstanceHandler(db *sqlx.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		pipelineId := r.FormValue("pipeline_id")
 		jobName := r.FormValue("name")
@@ -196,9 +198,9 @@ func jobHandler(db *sqlx.DB) http.HandlerFunc {
 			job.UpdatedAt.Format(time.RFC3339),
 		}
 		tmpl := template.Must(
-			template.New("job.page.html").
+			template.New("job_instance.page.html").
 				Funcs(tmplFuncs).
-				ParseFiles("templates/job.page.html", "templates/base.layout.html"),
+				ParseFiles("templates/job_instance.page.html", "templates/base.layout.html"),
 		)
 		if err := tmpl.Execute(w, data); err != nil {
 			log.Print(err)
