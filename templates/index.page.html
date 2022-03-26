@@ -29,9 +29,13 @@
 					{{ .Name }}
 				</td>
 				<td>
+					{{ if .LastStatus }}
 					<span class="badge bg-{{ bsColor .LastStatus }}">
 						{{ .LastStatus }}
 					</span>
+					{{ else }}
+						N/A
+					{{ end }}
 				</td>
 				<td>
 					{{ if .LastCompleted }}
