@@ -1,8 +1,9 @@
-package main
+package zephyr
 
 import (
 	"database/sql"
 	"fmt"
+	"github.com/go-co-op/gocron"
 	"html/template"
 	"log"
 	"net/http"
@@ -12,6 +13,26 @@ import (
 	"github.com/ngrash/zephyr/config"
 	"github.com/ngrash/zephyr/database"
 )
+
+type Server struct {
+	mux *http.ServeMux
+}
+
+func NewServer(pipelines config.Pipelines, db *sqlx.DB, executor *Executor, jobs map[string]*gocron.Job) Server {
+	mux := http.NewServeMux()
+
+	mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("./assets"))))
+	mux.HandleFunc("/", indexHandler(pipelines, db, jobs))
+	mux.HandleFunc("/run", runHandler(pipelines, executor))
+	mux.HandleFunc("/pipeline_instance", pipelineInstanceHandler(pipelines, db))
+	mux.HandleFunc("/job_instance", jobInstanceHandler(db))
+
+	return Server{mux}
+}
+
+func (s Server) ListenAndServe(addr string) error {
+	return http.ListenAndServe(addr, s.mux)
+}
 
 var tmplFuncs = template.FuncMap{
 	"bsColor": func(s database.Status) string {
@@ -52,7 +73,7 @@ func jobInstancePath(name, pipeline_id string) string {
 	return fmt.Sprintf("%s?name=%s&pipeline_id=%s", jobInstancePattern, name, pipeline_id)
 }
 
-func indexHandler(pipelines []config.Pipeline, db *sqlx.DB) http.HandlerFunc {
+func indexHandler(pipelines []config.Pipeline, db *sqlx.DB, jobs map[string]*gocron.Job) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		type PipelineViewModel struct {
@@ -70,7 +91,7 @@ func indexHandler(pipelines []config.Pipeline, db *sqlx.DB) http.HandlerFunc {
 
 			pvm := PipelineViewModel{p, nil, "N/A", nil, "N/A", nil, "N/A"}
 
-			if schedJob, ok := scheduled[p.Name]; ok {
+			if schedJob, ok := jobs[p.Name]; ok {
 				pvm.NextRunAt = schedJob.ScheduledTime().Format(time.RFC3339)
 			}
 

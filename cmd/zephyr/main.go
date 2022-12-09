@@ -2,8 +2,8 @@ package main
 
 import (
 	"flag"
+	"github.com/ngrash/zephyr"
 	"log"
-	"net/http"
 	"time"
 
 	"github.com/go-co-op/gocron"
@@ -12,8 +12,6 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 )
-
-var scheduled map[string]*gocron.Job
 
 var (
 	smtpHost     = flag.String("smtp-host", "", "Host of SMTP server")
@@ -27,20 +25,20 @@ var (
 func main() {
 	flag.Parse()
 
-	mailer := NewMailer(*smtpHost, *smtpPort, *smtpUser, *smtpPassword, *baseURL)
+	mailer := zephyr.NewMailer(*smtpHost, *smtpPort, *smtpUser, *smtpPassword, *baseURL)
 
 	db, err := sqlx.Connect("sqlite3", "zephyr.db?foreign_keys=on")
 	if err != nil {
 		log.Fatal(err)
 	}
-	MigrateSchema(db)
+	zephyr.MigrateSchema(db)
 
-	executor := NewExecutor(db, mailer)
+	executor := zephyr.NewExecutor(db, mailer)
 
 	pipelines, err := config.LoadPipelines("pipelines.yaml")
 
 	scheduler := gocron.NewScheduler(time.UTC)
-	scheduled = make(map[string]*gocron.Job)
+	scheduled := make(map[string]*gocron.Job)
 	for _, p := range pipelines {
 		pipeline := p
 		if p.Schedule != "" {
@@ -54,12 +52,8 @@ func main() {
 		}
 	}
 	scheduler.StartAsync()
-	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("./assets"))))
-	http.HandleFunc("/", indexHandler(pipelines, db))
-	http.HandleFunc("/run", runHandler(pipelines, executor))
-	http.HandleFunc("/pipeline_instance", pipelineInstanceHandler(pipelines, db))
-	http.HandleFunc("/job_instance", jobInstanceHandler(db))
+	server := zephyr.NewServer(pipelines, db, executor, scheduled)
 
 	log.Print("serving")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Fatal(server.ListenAndServe(":8080"))
 }
