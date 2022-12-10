@@ -40,17 +40,17 @@ type Line struct {
 type Log struct {
 	lines    []Line
 	mutex    sync.Mutex
-	callback func(newLine *Line)
+	callback func(newLine Line)
 	outW     *bufferedLineWriter
 	errW     *bufferedLineWriter
 }
 
 // NewLog creates a new log.
 func NewLog() *Log {
-	return NewLogWithCallback(func(_ *Line) {})
+	return NewLogWithCallback(func(_ Line) {})
 }
 
-func NewLogWithCallback(callback func(newLine *Line)) *Log {
+func NewLogWithCallback(callback func(newLine Line)) *Log {
 	l := &Log{
 		make([]Line, 0),
 		sync.Mutex{},
@@ -86,7 +86,7 @@ func (l *Log) writeLine(stream Stream, text string) {
 	defer l.mutex.Unlock()
 	line := Line{stream, time.Now(), text}
 	l.lines = append(l.lines, line)
-	l.callback(&line)
+	l.callback(line)
 }
 
 // Lines returns all lines written to the Log.

@@ -64,7 +64,7 @@ func (e *Executor) AsyncPipelineRoutine(p *database.Pipeline, js []*database.Job
 	for idx, job := range js {
 		e.setJobStatus(job, database.StatusRunning)
 
-		streams := stdstreams.NewLogWithCallback(func(newLine *stdstreams.Line) {
+		streams := stdstreams.NewLogWithCallback(func(newLine stdstreams.Line) {
 			e.db.MustExec(database.CreateLog,
 				newLine.Stream,
 				job.Id,
