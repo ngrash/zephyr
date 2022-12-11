@@ -28,7 +28,7 @@ func TestRun_OneJobWithOutput(t *testing.T) {
 		"pipeline completed: P0",
 	}
 
-	report := TestReporter{}
+	report := TestCallbacks{}
 
 	_, wg, err := Run(p, &report)
 	if err != nil {
@@ -71,7 +71,7 @@ func TestRun_FailedJob(t *testing.T) {
 		"job cancelled: 3",
 	}
 
-	report := TestReporter{}
+	report := TestCallbacks{}
 
 	_, wg, err := Run(p, &report)
 	if err != nil {
@@ -86,56 +86,56 @@ func TestRun_FailedJob(t *testing.T) {
 
 }
 
-type TestReporter struct {
+type TestCallbacks struct {
 	Log    []string
 	nextId int
 }
 
-func (t *TestReporter) PipelineCreated(config.Pipeline) PipelineInstanceId {
+func (cb *TestCallbacks) CreatePipeline(config.Pipeline) PipelineInstanceId {
 	id := "P0"
-	t.logf("pipeline created: %s", id)
+	cb.logf("pipeline created: %s", id)
 	return PipelineInstanceId(id)
 }
 
-func (t *TestReporter) PipelineStarted(_ config.Pipeline, pId PipelineInstanceId) {
-	t.logf("pipeline started: %s", pId)
+func (cb *TestCallbacks) StartPipeline(_ config.Pipeline, pId PipelineInstanceId) {
+	cb.logf("pipeline started: %s", pId)
 }
 
-func (t *TestReporter) JobCreated(config.Pipeline, PipelineInstanceId, config.Job) JobInstanceId {
-	jId := JobInstanceId(t.nextId)
-	t.nextId++
-	t.logf("job created: %d", jId)
+func (cb *TestCallbacks) CreateJob(config.Pipeline, PipelineInstanceId, config.Job) JobInstanceId {
+	jId := JobInstanceId(cb.nextId)
+	cb.nextId++
+	cb.logf("job created: %d", jId)
 	return jId
 }
 
-func (t *TestReporter) JobStarted(_ config.Pipeline, _ PipelineInstanceId, _ config.Job, jId JobInstanceId) {
-	t.logf("job started: %d", jId)
+func (cb *TestCallbacks) StartJob(_ config.Pipeline, _ PipelineInstanceId, _ config.Job, jId JobInstanceId) {
+	cb.logf("job started: %d", jId)
 }
 
-func (t *TestReporter) JobOutput(_ config.Pipeline, _ PipelineInstanceId, _ config.Job, jId JobInstanceId, line stdstreams.Line) {
-	t.logf("job (%d) output to %s: %s", jId, line.Stream, line.Text)
+func (cb *TestCallbacks) LogJobOutput(_ config.Pipeline, _ PipelineInstanceId, _ config.Job, jId JobInstanceId, line stdstreams.Line) {
+	cb.logf("job (%d) output to %s: %s", jId, line.Stream, line.Text)
 }
 
-func (t *TestReporter) JobFailed(_ config.Pipeline, _ PipelineInstanceId, _ config.Job, id JobInstanceId) {
-	t.logf("job failed: %s", id)
+func (cb *TestCallbacks) FailJob(_ config.Pipeline, _ PipelineInstanceId, _ config.Job, id JobInstanceId) {
+	cb.logf("job failed: %s", id)
 }
 
-func (t *TestReporter) JobCompleted(_ config.Pipeline, _ PipelineInstanceId, _ config.Job, id JobInstanceId) {
-	t.logf("job completed: %s", id)
+func (cb *TestCallbacks) CompleteJob(_ config.Pipeline, _ PipelineInstanceId, _ config.Job, id JobInstanceId) {
+	cb.logf("job completed: %s", id)
 }
 
-func (t *TestReporter) JobCancelled(_ config.Pipeline, _ PipelineInstanceId, _ config.Job, id JobInstanceId) {
-	t.logf("job cancelled: %s", id)
+func (cb *TestCallbacks) CancelJob(_ config.Pipeline, _ PipelineInstanceId, _ config.Job, id JobInstanceId) {
+	cb.logf("job cancelled: %s", id)
 }
 
-func (t *TestReporter) PipelineFailed(_ config.Pipeline, id PipelineInstanceId) {
-	t.logf("pipeline failed: %s", id)
+func (cb *TestCallbacks) FailPipeline(_ config.Pipeline, id PipelineInstanceId) {
+	cb.logf("pipeline failed: %s", id)
 }
 
-func (t *TestReporter) PipelineCompleted(_ config.Pipeline, id PipelineInstanceId) {
-	t.logf("pipeline completed: %s", id)
+func (cb *TestCallbacks) CompletePipeline(_ config.Pipeline, id PipelineInstanceId) {
+	cb.logf("pipeline completed: %s", id)
 }
 
-func (t *TestReporter) logf(format string, a ...interface{}) {
-	t.Log = append(t.Log, fmt.Sprintf(format, a...))
+func (cb *TestCallbacks) logf(format string, a ...interface{}) {
+	cb.Log = append(cb.Log, fmt.Sprintf(format, a...))
 }

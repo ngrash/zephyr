@@ -18,12 +18,12 @@ type Server struct {
 	mux *http.ServeMux
 }
 
-func NewServer(pipelines config.Pipelines, db *sqlx.DB, executor *Executor, jobs map[string]*gocron.Job) Server {
+func NewServer(pipelines config.Pipelines, db *sqlx.DB, repo Repository, jobs map[string]*gocron.Job) Server {
 	mux := http.NewServeMux()
 
 	mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("./assets"))))
 	mux.HandleFunc("/", indexHandler(pipelines, db, jobs))
-	mux.HandleFunc("/run", runHandler(pipelines, executor))
+	mux.HandleFunc("/run", runHandler(pipelines, repo))
 	mux.HandleFunc("/pipeline_instance", pipelineInstanceHandler(pipelines, db))
 	mux.HandleFunc("/job_instance", jobInstanceHandler(db))
 
@@ -139,12 +139,12 @@ func indexHandler(pipelines []config.Pipeline, db *sqlx.DB, jobs map[string]*goc
 	}
 }
 
-func runHandler(pipelines []config.Pipeline, executor *Executor) http.HandlerFunc {
+func runHandler(pipelines []config.Pipeline, repo Repository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		name := r.FormValue("name")
 		pipeline := pipelineByName(pipelines, name)
-		id := executor.Run(pipeline)
-		http.Redirect(w, r, pipelineInstancePath(id), http.StatusSeeOther)
+		id, _, _ := Run(*pipeline, repo)
+		http.Redirect(w, r, pipelineInstancePath(string(id)), http.StatusSeeOther)
 	}
 }
 

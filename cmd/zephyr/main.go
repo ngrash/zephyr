@@ -33,7 +33,7 @@ func main() {
 	}
 	zephyr.MigrateSchema(db)
 
-	executor := zephyr.NewExecutor(db, mailer)
+	repo := zephyr.NewRepository(db, mailer)
 
 	pipelines, err := config.LoadPipelines("pipelines.yaml")
 
@@ -43,7 +43,10 @@ func main() {
 		pipeline := p
 		if p.Schedule != "" {
 			job, err := scheduler.Cron(p.Schedule).Do(func() {
-				executor.Run(&pipeline)
+				_, _, err := zephyr.Run(pipeline, repo)
+				if err != nil {
+					log.Fatal(err)
+				}
 			})
 			if err != nil {
 				log.Fatal(err)
@@ -52,7 +55,7 @@ func main() {
 		}
 	}
 	scheduler.StartAsync()
-	server := zephyr.NewServer(pipelines, db, executor, scheduled)
+	server := zephyr.NewServer(pipelines, db, repo, scheduled)
 
 	log.Print("serving")
 	log.Fatal(server.ListenAndServe(":8080"))

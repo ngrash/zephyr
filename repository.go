@@ -11,16 +11,16 @@ import (
 	"time"
 )
 
-type Reporter struct {
+type Repository struct {
 	db     *sqlx.DB
 	mailer Mailer
 }
 
-func NewReporter(db *sqlx.DB, mailer Mailer) Reporter {
-	return Reporter{db, mailer}
+func NewRepository(db *sqlx.DB, mailer Mailer) Repository {
+	return Repository{db, mailer}
 }
 
-func (r Reporter) PipelineCreated(pipeline config.Pipeline) PipelineInstanceId {
+func (r Repository) CreatePipeline(pipeline config.Pipeline) PipelineInstanceId {
 	pId := PipelineInstanceId(uuid.NewString())
 	now := time.Now().UTC()
 	r.db.MustExec(database.CreatePipeline,
@@ -32,11 +32,11 @@ func (r Reporter) PipelineCreated(pipeline config.Pipeline) PipelineInstanceId {
 	return pId
 }
 
-func (r Reporter) PipelineStarted(pipeline config.Pipeline, pId PipelineInstanceId) {
+func (r Repository) StartPipeline(_ config.Pipeline, pId PipelineInstanceId) {
 	r.setPipelineStatus(pId, database.StatusRunning)
 }
 
-func (r Reporter) JobCreated(pipeline config.Pipeline, pipelineId PipelineInstanceId, job config.Job) JobInstanceId {
+func (r Repository) CreateJob(_ config.Pipeline, pipelineId PipelineInstanceId, job config.Job) JobInstanceId {
 	now := time.Now().UTC()
 	j := &database.Job{Status: database.StatusPending, Name: job.Name, Command: job.Command}
 	result := r.db.MustExec(database.CreateJob,
@@ -53,29 +53,31 @@ func (r Reporter) JobCreated(pipeline config.Pipeline, pipelineId PipelineInstan
 	return JobInstanceId(id)
 }
 
-func (r Reporter) JobStarted(pipeline config.Pipeline, job config.Job, id JobInstanceId) {
-	//TODO implement me
-	panic("implement me")
+func (r Repository) StartJob(_ config.Pipeline, _ PipelineInstanceId, _ config.Job, jId JobInstanceId) {
+	r.setJobStatus(jId, database.StatusRunning)
 }
 
-func (r Reporter) JobOutput(pipeline config.Pipeline, job config.Job, id JobInstanceId, line stdstreams.Line) {
-	//TODO implement me
-	panic("implement me")
+func (r Repository) LogJobOutput(_ config.Pipeline, _ PipelineInstanceId, _ config.Job, jId JobInstanceId, line stdstreams.Line) {
+	r.db.MustExec(database.CreateLog,
+		line.Stream,
+		jId,
+		line.Text,
+		line.Time.UTC())
 }
 
-func (r Reporter) JobFailed(pipeline config.Pipeline, job config.Job, jId JobInstanceId) {
+func (r Repository) FailJob(_ config.Pipeline, _ PipelineInstanceId, _ config.Job, jId JobInstanceId) {
 	r.setJobStatus(jId, database.StatusFailed)
 }
 
-func (r Reporter) JobCompleted(pipeline config.Pipeline, job config.Job, jId JobInstanceId) {
+func (r Repository) CompleteJob(_ config.Pipeline, _ PipelineInstanceId, _ config.Job, jId JobInstanceId) {
 	r.setJobStatus(jId, database.StatusCompleted)
 }
 
-func (r Reporter) JobCancelled(pipeline config.Pipeline, job config.Job, jId JobInstanceId) {
+func (r Repository) CancelJob(_ config.Pipeline, _ PipelineInstanceId, _ config.Job, jId JobInstanceId) {
 	r.setJobStatus(jId, database.StatusCancelled)
 }
 
-func (r Reporter) PipelineFailed(pipeline config.Pipeline, pId PipelineInstanceId) {
+func (r Repository) FailPipeline(pipeline config.Pipeline, pId PipelineInstanceId) {
 	r.setPipelineStatus(pId, database.StatusFailed)
 
 	if pipeline.Alert != "" {
@@ -92,14 +94,14 @@ func (r Reporter) PipelineFailed(pipeline config.Pipeline, pId PipelineInstanceI
 	}
 }
 
-func (r Reporter) PipelineCompleted(pipeline config.Pipeline, pId PipelineInstanceId) {
+func (r Repository) CompletePipeline(_ config.Pipeline, pId PipelineInstanceId) {
 	r.setPipelineStatus(pId, database.StatusCompleted)
 }
 
-func (r Reporter) setPipelineStatus(pId PipelineInstanceId, s database.Status) {
+func (r Repository) setPipelineStatus(pId PipelineInstanceId, s database.Status) {
 	r.db.MustExec(database.UpdatePipelineStatusById, s, time.Now().UTC(), pId)
 }
 
-func (r Reporter) setJobStatus(jId JobInstanceId, s database.Status) {
+func (r Repository) setJobStatus(jId JobInstanceId, s database.Status) {
 	r.db.MustExec(database.UpdateJobStatusById, s, time.Now().UTC(), jId)
 }
